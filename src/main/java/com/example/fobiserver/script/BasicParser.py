@@ -4,9 +4,28 @@ import json
 import os
 import uuid
 
+#get_toc()값이 없을 경우 heading 기반으로 toc 추정함
+def guess_pdf_headings(doc):
+    titles = []
+    for i in range(len(doc)):
+        blocks = doc.load_page(i).get_text("dict")["blocks"]
+        for block in blocks:
+            for line in block.get("lines", []):
+                spans = line.get("spans", [])
+                if not spans:
+                    continue
+                text = " ".join([span["text"] for span in spans]).strip()
+                font_size = spans[0]["size"]
+                if font_size > 12 and 5 < len(text) < 100:
+                    titles.append((text, i + 1))
+    guessed_toc = [(1, title, page) for title, page in titles] #레벨 1로 고정함
+    return guessed_toc
+
 def extract_pdf_info(file_path):
     doc = fitz.open(file_path)
     toc = doc.get_toc()
+    if not toc:
+        toc = guess_pdf_headings(doc)
 
     structured = []
     id_map = {}  # title -> item
