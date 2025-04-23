@@ -5,7 +5,7 @@ import os
 import uuid
 
 def extract_pdf_info(file_path):
-    doc = pymupdf.open(file_path)
+    doc = fitz.open(file_path)
     toc = doc.get_toc()
 
     structured = []
