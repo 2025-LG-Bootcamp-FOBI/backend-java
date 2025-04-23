@@ -33,6 +33,11 @@ public class FileService {
 
         // 파일 저장 및 Elasticsearch 키워드 저장
         try {
+            // 디렉토리 없으면 생성
+            if (!Files.exists(uploadPath.getParent())) {
+                Files.createDirectories(uploadPath.getParent());
+            }
+
             Files.copy(file.getInputStream(), uploadPath, StandardCopyOption.REPLACE_EXISTING);
             String keywords = pythonExecutor.executePythonScript(filePath, new String[0]);
             log.info("keywords: {}", keywords);
