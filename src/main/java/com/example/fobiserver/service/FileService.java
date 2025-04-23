@@ -38,8 +38,7 @@ public class FileService {
             log.info("keywords: {}", keywords);
             keywordService.saveKeywordsFromJson(objectMapper.readTree(keywords));
         } catch (Exception e) {
-            log.error(e.getStackTrace().toString());
-//            log.error(e.getMessage());
+            log.error("File save or parse error", e);
             return null;
         }
         return filePath;
