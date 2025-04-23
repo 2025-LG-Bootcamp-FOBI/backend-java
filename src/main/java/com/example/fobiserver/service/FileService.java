@@ -8,10 +8,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Stream;
 
 import static com.example.fobiserver.constant.Constant.FOLDER_PATH;
 
@@ -26,7 +30,16 @@ public class FileService {
     private final KeywordService keywordService;
 
     public void saveFile(MultipartFile file) {
-        String filePath = FOLDER_PATH + File.separator + file.getOriginalFilename();
+
+        String fileName = file.getOriginalFilename();
+
+        // 동일 파일 이름 존재일 경우 _숫자 추가
+        int count =  countFileNames(file.getOriginalFilename());
+        if (count > 0) {
+            fileName = fileName + "_" + count;
+        }
+
+        String filePath = FOLDER_PATH + File.separator + fileName;
         Path uploadPath = Paths.get(filePath);
 
         log.info("filePath: {}", filePath);
@@ -45,5 +58,24 @@ public class FileService {
         } catch (Exception e) {
             log.error("File save or parse error", e);
         }
+    }
+
+    public List<String> listFiles() {
+        try (Stream<Path> paths = Files.list(Paths.get(FOLDER_PATH))) {
+            return paths.filter(Files::isRegularFile)
+                    .map(Path::toString) // 파일 경로를 문자열로 변환
+                    .map(path -> path.split("/")[1])
+                    .toList();
+        } catch (IOException e) {
+            log.error("File list error", e);
+            return new ArrayList<>();
+        }
+    }
+
+    private int countFileNames(String fileName) {
+        return (int) listFiles()
+                .stream()
+                .filter(file -> file.equals(fileName))
+                .count();
     }
 }

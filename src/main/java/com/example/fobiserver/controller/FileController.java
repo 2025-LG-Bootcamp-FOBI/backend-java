@@ -31,15 +31,6 @@ public class FileController {
 
     @GetMapping("/files")
     public ResponseEntity<List<String>> fileList() {
-        try (Stream<Path> paths = Files.list(Paths.get(FOLDER_PATH))) {
-            List<String> body = paths
-                    .filter(Files::isRegularFile) // 파일만 필터링
-                    .map(Path::toString) // 파일 경로를 문자열로 변환
-                    .map(path -> path.split("/")[1])
-                    .collect(Collectors.toList());
-            return ResponseEntity.ok(body);
-        } catch (IOException e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+        return ResponseEntity.ok(fileService.listFiles());
     }
 }
