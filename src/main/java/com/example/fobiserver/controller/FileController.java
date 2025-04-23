@@ -25,6 +25,9 @@ public class FileController {
 
     @PostMapping("/files")
     public ResponseEntity<String> uploadFile(@RequestParam("file") MultipartFile file) {
+        if (file.isEmpty() || file.getSize() == 0) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("file is empty");
+        }
         fileService.saveFile(file);
         return ResponseEntity.ok(file.getOriginalFilename());
     }
