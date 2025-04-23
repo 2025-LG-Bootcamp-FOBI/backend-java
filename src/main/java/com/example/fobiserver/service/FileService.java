@@ -25,7 +25,7 @@ public class FileService {
 
     private final KeywordService keywordService;
 
-    public String saveFile(MultipartFile file) {
+    public void saveFile(MultipartFile file) {
         String filePath = FOLDER_PATH + File.separator + file.getOriginalFilename();
         Path uploadPath = Paths.get(filePath);
 
@@ -44,8 +44,6 @@ public class FileService {
             keywordService.saveKeywordsFromJson(objectMapper.readTree(keywords));
         } catch (Exception e) {
             log.error("File save or parse error", e);
-            return null;
         }
-        return filePath;
     }
 }
