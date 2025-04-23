@@ -1,5 +1,5 @@
 # 1단계: 빌드 단계
-FROM gradle:8.5-jdk21-alpine AS build
+FROM gradle:8.5-jdk21-jammy as build
 
 WORKDIR /app
 
@@ -8,11 +8,15 @@ COPY . .
 # Python 설치
 RUN apt-get update && \
     apt-get install -y python3 python3-pip && \
-    pip3 install --upgrade pip
+    pip3 install --no-cache-dir \
+        flask==2.0.1 \
+        flask-cors==3.0.10 \
+        PyMuPDF==1.21.1 \
+        python-dotenv==0.19.0 \
+        werkzeug==2.0.3
 
-# requirements.txt 복사 및 설치
-COPY requirements.txt .
-RUN pip3 install -r requirements.txt
+RUN gradle bootJar -x test --no-daemon
+
 
 # 2단계: 실행 단계
 FROM amazoncorretto:21-alpine3.21-jdk

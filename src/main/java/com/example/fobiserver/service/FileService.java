@@ -29,10 +29,13 @@ public class FileService {
         String filePath = FOLDER_PATH + File.separator + file.getOriginalFilename();
         Path uploadPath = Paths.get(filePath);
 
+        log.info("filePath: {}", filePath);
+
         // 파일 저장 및 Elasticsearch 키워드 저장
         try {
             Files.copy(file.getInputStream(), uploadPath, StandardCopyOption.REPLACE_EXISTING);
             String keywords = pythonExecutor.executePythonScript(filePath, new String[0]);
+            log.info("keywords: {}", keywords);
             keywordService.saveKeywordsFromJson(objectMapper.readTree(keywords));
         } catch (Exception e) {
             log.error(e.getMessage());
