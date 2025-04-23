@@ -4,6 +4,8 @@ import com.example.fobiserver.util.PythonExecutor;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -29,16 +31,15 @@ public class FileService {
 
     private final KeywordService keywordService;
 
+    private final String PDF_EXTENSION = ".pdf";
+
     public void saveFile(MultipartFile file) {
 
-        String fileName = file.getOriginalFilename();
-
-        // 동일 파일 이름 존재일 경우 _숫자 추가
-        int count =  countFileNames(file.getOriginalFilename());
-        if (count > 0) {
-            fileName = fileName + "_" + count;
+        if (file == null || file.isEmpty()) {
+            return;
         }
 
+        String fileName = setFileName(file.getOriginalFilename());
         String filePath = FOLDER_PATH + File.separator + fileName;
         Path uploadPath = Paths.get(filePath);
 
@@ -72,10 +73,91 @@ public class FileService {
         }
     }
 
-    private int countFileNames(String fileName) {
-        return (int) listFiles()
+    public Resource getFile(String fileName) {
+        String filePath = FOLDER_PATH + File.separator + fileName;
+        File file = new File(filePath);
+
+        if (!file.exists() || !file.isFile()) {
+            return null;
+        }
+
+        return new FileSystemResource(file);
+    }
+
+    public void updateFile(String oldName, String newName) {
+
+        if (oldName == null || newName == null
+        || oldName.isBlank() || newName.isBlank()) {
+            return;
+        }
+
+        if (checkDuplication(newName)) {
+            return;
+        }
+
+        String oldFilePath = FOLDER_PATH + File.separator + oldName;
+        String newFilePath = FOLDER_PATH + File.separator + newName;
+
+        File oldFile = new File(oldFilePath);
+        File newFile = new File(newFilePath);
+
+        boolean renamed = oldFile.renameTo(newFile);
+        if (!renamed) {
+            log.error("Failed to rename file from {} to {}", oldName, newName);
+            return;
+        }
+
+        log.info("File renamed from {} to {}", oldName, newName);
+
+        try {
+            String keywords = pythonExecutor.executePythonScript(newFilePath, new String[0]);
+            log.info("keywords: {}", keywords);
+            keywordService.updateKeyword(oldName, objectMapper.readTree(keywords));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+    }
+
+    public void deleteFile(String fileName) {
+        if (fileName == null || fileName.isBlank()) {
+            return;
+        }
+
+        String filePath = FOLDER_PATH + File.separator + fileName;
+        File file = new File(filePath);
+
+        if (!file.exists()) {
+            log.warn("File not found: {}", filePath);
+            return;
+        }
+
+        boolean deleted = file.delete();
+
+        if (deleted) {
+            keywordService.deleteKeyword(fileName);
+            log.info("File deleted: {}", filePath);
+        } else {
+            log.error("Failed to delete file: {}", filePath);
+        }
+    }
+
+    private boolean checkDuplication(String fileName) {
+        return listFiles().contains(fileName);
+    }
+
+    private String setFileName(String fileName) {
+        String name = fileName.split(PDF_EXTENSION)[0];
+
+        int count = (int) listFiles()
                 .stream()
-                .filter(file -> file.equals(fileName))
+                .filter(file -> file.contains(name))
                 .count();
+
+        if (count > 0) {
+            return name + "_" + count + PDF_EXTENSION;
+        } else {
+            return fileName;
+        }
     }
 }

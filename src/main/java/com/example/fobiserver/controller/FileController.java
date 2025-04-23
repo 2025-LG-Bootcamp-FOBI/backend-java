@@ -2,6 +2,7 @@ package com.example.fobiserver.controller;
 
 import com.example.fobiserver.service.FileService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -35,5 +36,22 @@ public class FileController {
     @GetMapping("/files")
     public ResponseEntity<List<String>> fileList() {
         return ResponseEntity.ok(fileService.listFiles());
+    }
+
+    @GetMapping("/file")
+    public ResponseEntity<Resource> getFile(@RequestParam String fileName) {
+        return ResponseEntity.ok(fileService.getFile(fileName));
+    }
+
+    @PutMapping("/files")
+    public ResponseEntity<String> updateFile(@RequestParam String oldName, String newName) {
+        fileService.updateFile(oldName, newName);
+        return ResponseEntity.ok("file name was successfully updated");
+    }
+
+    @DeleteMapping("/files")
+    public ResponseEntity<String> deleteFile(@RequestParam String fileName) {
+        fileService.deleteFile(fileName);
+        return ResponseEntity.ok("file was successfully deleted");
     }
 }

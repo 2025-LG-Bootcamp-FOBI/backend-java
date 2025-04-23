@@ -34,4 +34,10 @@ public class KeywordDocument {
 
     @Field(type = FieldType.Text, index = false, docValues = false)
     private String fileName;
+
+    @Field(type = FieldType.Object, index = false, docValues = false)
+    private List<Person>  persons;
+
+    @Field(type = FieldType.Object, index = false, docValues = false)
+    private List<Issue> issues;
 }
