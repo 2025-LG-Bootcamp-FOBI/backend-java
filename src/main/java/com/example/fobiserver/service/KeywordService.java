@@ -85,14 +85,14 @@ public class KeywordService {
     private List<Person> getRandomPersons() {
         List<Person> allPersons = personRepository.findAll();
         Collections.shuffle(allPersons);
-        int count = 1 + random.nextInt(3); // 1 ~ 3명
+        int count = random.nextInt(3); // 0~2명
         return allPersons.stream().limit(count).collect(Collectors.toList());
     }
 
     private List<Issue> getRandomIssues() {
         List<Issue> allIssues = issueRepository.findAll();
         Collections.shuffle(allIssues);
-        int count = 1 + random.nextInt(2); // 1 ~ 2개
+        int count = random.nextInt(3); // 0~2개
         return allIssues.stream().limit(count).collect(Collectors.toList());
     }
 }
