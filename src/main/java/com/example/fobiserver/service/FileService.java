@@ -15,6 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.attribute.FileTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
@@ -64,6 +65,15 @@ public class FileService {
     public List<String> listFiles() {
         try (Stream<Path> paths = Files.list(Paths.get(FOLDER_PATH))) {
             return paths.filter(Files::isRegularFile)
+                    .sorted((p1, p2) -> {
+                        try {
+                            FileTime t1 = Files.getLastModifiedTime(p1);
+                            FileTime t2 = Files.getLastModifiedTime(p2);
+                            return t2.compareTo(t1); // 최신 순으로 정렬 (내림차순)
+                        } catch (IOException e) {
+                            return 0; // 에러 시 정렬에 영향 없도록
+                        }
+                    })
                     .map(Path::toString) // 파일 경로를 문자열로 변환
                     .map(path -> path.split("/")[1])
                     .toList();
