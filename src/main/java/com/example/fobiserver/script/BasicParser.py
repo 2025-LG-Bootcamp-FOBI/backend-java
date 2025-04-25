@@ -32,6 +32,10 @@ def extract_pdf_info(file_path):
     stack = []   # 계층 추적을 위한 스택
 
     for level, title, page in toc:
+        # title이 None이거나 앞뒤 공백 제거 후 빈 문자열이면 건너뜀
+        if title is None or title.strip() == "":
+            continue
+
         node = {
             "id": str(uuid.uuid4()),
             "level": level,
