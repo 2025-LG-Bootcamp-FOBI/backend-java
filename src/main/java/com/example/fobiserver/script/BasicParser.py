@@ -3,10 +3,13 @@ import sys
 import json
 import os
 import uuid
+from collections import defaultdict, Counter
 
-#get_toc()값이 없을 경우 heading 기반으로 toc 추정함
 def guess_pdf_headings(doc):
-    titles = []
+    font_texts = []  # (text, font_size, page_number)
+    font_counter = Counter()
+
+    # 1. 폰트 사이즈별로 텍스트를 수집하고 카운트
     for i in range(len(doc)):
         blocks = doc.load_page(i).get_text("dict")["blocks"]
         for block in blocks:
@@ -16,9 +19,27 @@ def guess_pdf_headings(doc):
                     continue
                 text = " ".join([span["text"] for span in spans]).strip()
                 font_size = spans[0]["size"]
-                if font_size > 11 and 5 < len(text) < 100:
-                    titles.append((text, i + 1))
-    guessed_toc = [(1, title, page) for title, page in titles] #레벨 1로 고정함
+                if font_size > 0 and 5 < len(text) < 100:
+                    font_texts.append((text, font_size, i + 1))
+                    font_counter[font_size] += 1
+
+    if not font_counter:
+        return []
+
+    # 2. 가장 많이 등장한 폰트 사이즈 찾기
+    most_common_font, _ = font_counter.most_common(1)[0]
+
+    # 3. 가장 많이 등장한 폰트 초과만 사용하여 레벨 매핑
+    filtered_fonts = [f for f in font_counter.keys() if f > most_common_font]
+    sorted_fonts = sorted(filtered_fonts, reverse=True)
+    font_to_level = {font: level + 1 for level, font in enumerate(sorted_fonts)}
+
+    # 4. 최종 TOC 구성
+    guessed_toc = []
+    for text, font_size, page in font_texts:
+        level = font_to_level.get(font_size, len(sorted_fonts))  # 매핑 없으면 최하위 레벨
+        guessed_toc.append((level, text, page))
+
     return guessed_toc
 
 def extract_pdf_info(file_path):
