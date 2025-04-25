@@ -19,36 +19,132 @@ def guess_pdf_headings(doc):
                     continue
                 text = " ".join([span["text"] for span in spans]).strip()
                 font_size = spans[0]["size"]
-                if font_size > 0 and 5 < len(text) < 100:
+                if font_size > 0 and 5 < len(text) < 100:  # 의미 있는 텍스트만 선택
                     font_texts.append((text, font_size, i + 1))
                     font_counter[font_size] += 1
 
     if not font_counter:
         return []
 
-    # 2. 가장 많이 등장한 폰트 사이즈 찾기
+    # 2. 가장 많이 등장한 폰트 사이즈 찾기 (본문 텍스트로 가정)
     most_common_font, _ = font_counter.most_common(1)[0]
 
-    # 3. 가장 많이 등장한 폰트 초과만 사용하여 레벨 매핑
-    filtered_fonts = [f for f in font_counter.keys() if f > most_common_font]
-    sorted_fonts = sorted(filtered_fonts, reverse=True)
-    font_to_level = {font: level + 1 for level, font in enumerate(sorted_fonts)}
+    # 3. 본문보다 큰 폰트만 사용하여 레벨 매핑
+    filtered_fonts = sorted([f for f in font_counter.keys() if f > most_common_font], reverse=True)
+    font_to_level = {font: level + 1 for level, font in enumerate(filtered_fonts)}
 
     # 4. 최종 TOC 구성
-    guessed_toc = []
+    toc = []
     for text, font_size, page in font_texts:
-        if font_size not in font_to_level.keys():
-            continue
-        level = font_to_level.get(font_size)
-        guessed_toc.append((level, text, page))
+        if font_size in font_to_level:
+            level = font_to_level[font_size]
+            # 숫자나 특수문자로만 된 텍스트 제외
+            if any(c.isalpha() for c in text):
+                toc.append((level, text, page))
 
-    return guessed_toc
+    return toc
+
+def print_toc(toc):
+    for level, title, page in toc:
+        indent = "  " * (level - 1)  # 레벨에 따른 들여쓰기
+        print(f"{indent}└─ {title} (Page {page})")
+
+def extract_contents_toc(doc):
+    contents_page = None
+    contents_end = None
+    toc = []
+
+    # 1. Contents 페이지 찾기
+    for i in range(len(doc)):
+        text = doc.load_page(i).get_text()
+        if "Contents" in text and contents_page is None:
+            contents_page = i
+        # Contents 다음 섹션 찾기 (Home Preview, Introduction 등)
+        elif contents_page is not None and ("Home Preview" in text or "Introduction" in text):
+            contents_end = i
+            break
+
+    if contents_page is None:
+        return []
+
+    if contents_end is None:
+        contents_end = contents_page + 2  # Contents가 보통 1-2페이지
+
+    # 2. Contents 페이지에서 목차 추출
+    toc_entries = []
+    for i in range(contents_page, contents_end):
+        page = doc.load_page(i)
+        blocks = page.get_text("dict")["blocks"]
+
+        for block in blocks:
+            for line in block.get("lines", []):
+                spans = line.get("spans", [])
+                if not spans:
+                    continue
+
+                # 들여쓰기 수준 확인 (첫 번째 span의 bbox로 확인)
+                indent_level = 1
+                if spans:
+                    bbox = spans[0].get("bbox", [0, 0, 0, 0])
+                    x0 = bbox[0]  # 왼쪽 좌표
+                    if x0 > 100:  # 기본 들여쓰기보다 큰 경우
+                        indent_level = 2
+                    if x0 > 150:  # 더 큰 들여쓰기
+                        indent_level = 3
+
+                # 전체 텍스트 수집
+                full_text = ""
+                for span in spans:
+                    text = span.get("text", "").strip()
+                    if text:
+                        full_text += text + " "
+
+                full_text = full_text.strip()
+                if not full_text or full_text == "Contents":
+                    continue
+
+                # 페이지 번호 찾기
+                parts = full_text.split()
+                if not parts:
+                    continue
+
+                try:
+                    # 마지막 숫자를 페이지 번호로 사용
+                    page_num = None
+                    for part in reversed(parts):
+                        if part.isdigit():
+                            page_num = int(part)
+                            break
+
+                    if page_num is None:
+                        continue
+
+                    # 제목에서 페이지 번호와 점(...) 제거
+                    title = full_text
+                    if "." * 3 in title:
+                        title = title.split("." * 3)[0].strip()
+                    title = " ".join([p for p in title.split() if not p.isdigit() and p != "|"]).strip()
+
+                    if not title:
+                        continue
+
+                    toc_entries.append((indent_level, title, page_num))
+                except ValueError:
+                    continue
+
+    return toc_entries
 
 def extract_pdf_info(file_path):
     doc = fitz.open(file_path)
+
+    # 1. 내장된 TOC 확인
     toc = doc.get_toc()
     if not toc:
-        toc = guess_pdf_headings(doc)
+        # 2. Contents 섹션 기반 추출 시도
+        toc = extract_contents_toc(doc)
+        if not toc:
+            # 3. 폰트 크기 기반 추출
+            toc = guess_pdf_headings(doc)
 
     structured = []
     id_map = {}  # title -> item
@@ -66,7 +162,7 @@ def extract_pdf_info(file_path):
             "page": page,
             "subKeywords": [],
             "parentId": None,
-            "fileName": file_path.split("/")[-1],
+            "fileName": os.path.basename(file_path),
         }
 
         # 현재 계층보다 위의 항목은 제거 (스택 정리)
@@ -77,7 +173,6 @@ def extract_pdf_info(file_path):
             parent = stack[-1]
             node["parentId"] = parent["id"]
             parent["subKeywords"].append(node["id"])
-
         else:
             structured.append(node)
 
