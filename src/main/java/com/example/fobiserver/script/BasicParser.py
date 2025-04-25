@@ -16,7 +16,7 @@ def guess_pdf_headings(doc):
                     continue
                 text = " ".join([span["text"] for span in spans]).strip()
                 font_size = spans[0]["size"]
-                if font_size > 12 and 5 < len(text) < 100:
+                if font_size > 11 and 5 < len(text) < 100:
                     titles.append((text, i + 1))
     guessed_toc = [(1, title, page) for title, page in titles] #레벨 1로 고정함
     return guessed_toc
