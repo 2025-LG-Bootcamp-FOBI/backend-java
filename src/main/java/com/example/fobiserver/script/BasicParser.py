@@ -37,7 +37,9 @@ def guess_pdf_headings(doc):
     # 4. 최종 TOC 구성
     guessed_toc = []
     for text, font_size, page in font_texts:
-        level = font_to_level.get(font_size, len(sorted_fonts))  # 매핑 없으면 최하위 레벨
+        if font_size not in font_to_level.keys():
+            continue
+        level = font_to_level.get(font_size)
         guessed_toc.append((level, text, page))
 
     return guessed_toc
