@@ -34,10 +34,10 @@ public class FileService {
 
     private final String PDF_EXTENSION = ".pdf";
 
-    public void saveFile(MultipartFile file) {
+    public String saveFile(MultipartFile file) {
 
         if (file == null || file.isEmpty()) {
-            return;
+            return "";
         }
 
         String fileName = setFileName(file.getOriginalFilename());
@@ -57,8 +57,10 @@ public class FileService {
             String keywords = pythonExecutor.executePythonScript(filePath, new String[0]);
             log.info("keywords: {}", keywords);
             keywordService.saveKeywordsFromJson(objectMapper.readTree(keywords));
+            return fileName;
         } catch (Exception e) {
             log.error("File save or parse error", e);
+            return "";
         }
     }
 
